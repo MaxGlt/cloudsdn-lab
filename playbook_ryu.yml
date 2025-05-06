@@ -2,16 +2,37 @@
   hosts: controller
   become: true
   tasks:
-    - name: Install OVS and Ryu dependencies
-      apt:
+    - name: Install OVS and dependencies
+      ansible.builtin.apt:
         name:
           - openvswitch-switch
-          - python3-ryu
+          - python3.9
+          - python3.9-venv
         state: present
-        update_cache: yes
+        update_cache: true
+
+    - name: Create Ryu directory
+      ansible.builtin.file:
+        path: /opt/ryu
+        state: directory
+        owner: vagrant
+        group: vagrant
+        mode: '0755'
+
+    - name: Create virtualenv with Python 3.9
+      ansible.builtin.command:
+        cmd: python3.9 -m venv /opt/ryu-venv
+        creates: /opt/ryu-venv
+
+    - name: Install Ryu and dependencies in virtualenv
+      ansible.builtin.pip:
+        requirements: /opt/ryu-venv/requirements.txt
+        virtualenv: /opt/ryu-venv
+        virtualenv_command: python3.9 -m venv
+        state: present
 
     - name: Create bridge OVS and add ports
-      shell: |
+      ansible.builtin.shell: |
         ovs-vsctl add-br br0 || true
         ip link add veth1 type veth peer name r1-veth
         ip link add veth2 type veth peer name r2-veth
@@ -24,9 +45,11 @@
         ip link set r2-veth up
         ip addr add 10.0.0.1/24 dev r1-veth
         ip addr add 10.0.0.2/24 dev r2-veth
+      args:
+        creates: /opt/ryu/switch.py
 
     - name: Copy Ryu script to the controller
-      copy:
+      ansible.builtin.copy:
         src: files/switch.py
         dest: /opt/ryu/switch.py
         mode: '0755'
@@ -34,16 +57,19 @@
         group: vagrant
 
     - name: Copy systemd service file
-      copy:
+      ansible.builtin.copy:
         src: files/ryu.service
         dest: /etc/systemd/system/ryu.service
+        mode: '0644'
+        owner: root
+        group: root
 
     - name: Reload systemd daemon
-      systemd:
+      ansible.builtin.systemd:
         daemon_reload: true
 
     - name: Activate and start the service
-      systemd:
+      ansible.builtin.systemd:
         name: ryu
-        enabled: yes
+        enabled: true
         state: started

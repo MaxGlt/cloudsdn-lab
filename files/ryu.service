@@ -6,7 +6,7 @@ After=network.target
 Type=simple
 User=vagrant
 WorkingDirectory=/opt/ryu
-ExecStart=/usr/bin/ryu-manager /opt/ryu/switch.py
+ExecStart=/opt/ryu-venv/bin/ryu-manager /opt/ryu/switch.py
 Restart=on-failure
 
 [Install]
