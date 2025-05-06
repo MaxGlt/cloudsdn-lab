@@ -1,0 +1,13 @@
+[Unit]
+Description=Ryu SDN Controller
+After=network.target
+
+[Service]
+Type=simple
+User=vagrant
+WorkingDirectory=/opt/ryu
+ExecStart=/usr/bin/ryu-manager /opt/ryu/switch.py
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

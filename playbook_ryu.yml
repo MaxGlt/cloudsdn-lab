@@ -1,0 +1,49 @@
+- name: Setup controller with OVS and Ryu
+  hosts: controller
+  become: true
+  tasks:
+    - name: Install OVS and Ryu dependencies
+      apt:
+        name:
+          - openvswitch-switch
+          - python3-ryu
+        state: present
+        update_cache: yes
+
+    - name: Create bridge OVS and add ports
+      shell: |
+        ovs-vsctl add-br br0 || true
+        ip link add veth1 type veth peer name r1-veth
+        ip link add veth2 type veth peer name r2-veth
+        ip link set veth1 up
+        ip link set veth2 up
+        ovs-vsctl add-port br0 veth1 || true
+        ovs-vsctl add-port br0 veth2 || true
+        ovs-vsctl set-controller br0 tcp:127.0.0.1:6633
+        ip link set r1-veth up
+        ip link set r2-veth up
+        ip addr add 10.0.0.1/24 dev r1-veth
+        ip addr add 10.0.0.2/24 dev r2-veth
+
+    - name: Copy Ryu script to the controller
+      copy:
+        src: files/switch.py
+        dest: /opt/ryu/switch.py
+        mode: '0755'
+        owner: vagrant
+        group: vagrant
+
+    - name: Copy systemd service file
+      copy:
+        src: files/ryu.service
+        dest: /etc/systemd/system/ryu.service
+
+    - name: Reload systemd daemon
+      systemd:
+        daemon_reload: true
+
+    - name: Activate and start the service
+      systemd:
+        name: ryu
+        enabled: yes
+        state: started

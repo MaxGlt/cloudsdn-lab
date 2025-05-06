@@ -1,68 +1,47 @@
 Vagrant.configure("2") do |config|
-
-  # VM1: SDN Switch with Open vSwitch and Ryu controller
-  config.vm.define "sdn" do |sdn|
-      sdn.vm.box = "debian/bullseye64"
-      sdn.vm.hostname = "sdn"
-      sdn.vm.provider "virtualbox" do |vb|
-          vb.memory = "1024"
-          vb.cpus   = 1
-      end
-      sdn.vm.provision "shell", path: "provision/sdn/sdn.sh"
-  end
+    config.vm.box = "debian/bookworm64"
   
-  # VM2: Router 1: Dynamic routing via FRRouting
-  config.vm.define "r1" do |r1|
-      r1.vm.box = "debian/bullseye64"
-      r1.vm.hostname = "r1"
+    # Controller : OVS + Ryu
+    config.vm.define "controller" do |controller|
+      controller.vm.hostname = "controller"
+      controller.vm.network "private_network", ip: "192.168.56.10"
+      controller.vm.provider "virtualbox" do |vb|
+        vb.memory = 1024
+        vb.cpus = 1
+      end
+      controller.vm.provision "ansible" do |ansible|
+        ansible.playbook = "playbook_ryu.yml"
+        ansible.inventory_path = "inventory.ini"
+        ansible.limit = "controller"
+      end
+    end
+  
+    # Router 1
+    config.vm.define "router1" do |r1|
+      r1.vm.hostname = "router1"
+      r1.vm.network "private_network", ip: "192.168.56.11"
       r1.vm.provider "virtualbox" do |vb|
-          vb.memory = "512"
-          vb.cpus   = 1
+        vb.memory = 512
       end
-      r1.vm.provision "shell", path: "provision/routing/r1.sh"
-  end
-
-  # VM3: Router 2: Dynamic routing via FRRouting
-  config.vm.define "r2" do |r2|
-      r2.vm.box = "debian/bullseye64"
-      r2.vm.hostname = "r2"
+      r1.vm.provision "ansible" do |ansible|
+        ansible.playbook = "playbook_frr.yml"
+        ansible.inventory_path = "inventory.ini"
+        ansible.limit = "router1"
+      end
+    end
+  
+    # Router 2
+    config.vm.define "router2" do |r2|
+      r2.vm.hostname = "router2"
+      r2.vm.network "private_network", ip: "192.168.56.12"
       r2.vm.provider "virtualbox" do |vb|
-          vb.memory = "512"
-          vb.cpus   = 1
+        vb.memory = 512
       end
-        r2.vm.provision "shell", path: "provision/routing/r2.sh"
-  end
-
-  # VM4: Monitoring: Monitoring with Prometheus and Grafana
-  config.vm.define "monitoring" do |monitoring|
-      monitoring.vm.box = "debian/bullseye64"
-      monitoring.vm.hostname = "monitoring"
-      monitoring.vm.provider "virtualbox" do |vb|
-          vb.memory = "512"
-          vb.cpus   = 1
+      r2.vm.provision "ansible" do |ansible|
+        ansible.playbook = "playbook_frr.yml"
+        ansible.inventory_path = "inventory.ini"
+        ansible.limit = "router2"
       end
-        monitoring.vm.provision "shell", path: "provision/monitoring/monitoring.sh"
-  end
-
-  # VM5: Client 1: Linux client host
-  config.vm.define "client1" do |client1|
-      client1.vm.box = "debian/bullseye64"
-      client1.vm.hostname = "client1"
-      client1.vm.provider "virtualbox" do |vb|
-          vb.memory = "256"
-          vb.cpus   = 1
-      end
-      client1.vm.provision "shell", path: "provision/clients/client1.sh"
+    end
   end
   
-  # VM6: Client 2: Linux client host
-  config.vm.define "client2" do |client2|
-      client2.vm.box = "debian/bullseye64"
-      client2.vm.hostname = "client2"
-      client2.vm.provider "virtualbox" do |vb|
-          vb.memory = "256"
-          vb.cpus   = 1
-      end
-      client2.vm.provision "shell", path: "provision/clients/client2.sh"
-  end
-end
