@@ -8,7 +8,13 @@
         state: present
         update_cache: true
 
-    - name: Enable OSPFd in FRR configuration
+    - name: Enable zebra in FRR daemons config
+      ansible.builtin.lineinfile:
+        path: /etc/frr/daemons
+        regexp: '^zebra='
+        line: 'zebra=yes'
+
+    - name: Enable OSPFd in FRR daemons config
       ansible.builtin.lineinfile:
         path: /etc/frr/daemons
         regexp: '^ospfd='
@@ -20,7 +26,7 @@
           ip link add {{ inventory_hostname }}-veth type dummy || true
           ip link set {{ inventory_hostname }}-veth up
           ip addr add {{ '10.0.0.11' if inventory_hostname == 'router1' else '10.0.0.12' }}/24 dev {{ inventory_hostname }}-veth
-        creates: "{{ inventory_hostname }}-veth"
+        creates: "/sys/class/net/{{ inventory_hostname }}-veth"
 
     - name: Generate FRR configuration file
       ansible.builtin.copy:
@@ -35,18 +41,13 @@
           !
           router ospf
            network 10.0.0.0/24 area 0
+           redistribute connected
           !
         mode: '0644'
         owner: frr
         group: frr
 
-    - name: Enable FRR service
-      ansible.builtin.systemd:
-        name: frr
-        enabled: true
-        state: started
-
-    - name: Restart FRR service
+    - name: Enable and restart FRR service
       ansible.builtin.systemd:
         name: frr
         enabled: true
