@@ -20,14 +20,6 @@
         regexp: '^ospfd='
         line: 'ospfd=yes'
 
-    - name: Create dummy interface simulating OVS connection
-      ansible.builtin.shell:
-        cmd: |
-          ip link add {{ inventory_hostname }}-veth type dummy || true
-          ip link set {{ inventory_hostname }}-veth up
-          ip addr add {{ '10.0.0.11' if inventory_hostname == 'router1' else '10.0.0.12' }}/24 dev {{ inventory_hostname }}-veth
-        creates: "/sys/class/net/{{ inventory_hostname }}-veth"
-
     - name: Generate FRR configuration file
       ansible.builtin.copy:
         dest: /etc/frr/frr.conf
@@ -36,12 +28,11 @@
           hostname {{ inventory_hostname }}
           log stdout
           !
-          interface {{ inventory_hostname }}-veth
-           ip address {{ '10.0.0.11/24' if inventory_hostname == 'router1' else '10.0.0.12/24' }}
+          interface eth2
+          ip address {{ '10.0.0.11/24' if inventory_hostname == 'router1' else '10.0.0.12/24' }}
           !
           router ospf
-           network 10.0.0.0/24 area 0
-           redistribute connected
+          network 10.0.0.0/24 area 0
           !
         mode: '0644'
         owner: frr

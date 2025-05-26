@@ -17,16 +17,15 @@ class FRRInteropRouter(app_manager.RyuApp):
         self.ipr = IPRoute()
         self.datapath = None
         self.port_map = {
-            "router1-veth": 1,
-            "router2-veth": 2
+            "veth1": 1,
+            "veth2": 2
         }
-        # Lancer une boucle de rafraîchissement des routes
         threading.Thread(target=self.route_sync_loop, daemon=True).start()
 
     def route_sync_loop(self):
         while True:
             if self.datapath:
-                self.logger.info("Synchronisation des routes...")
+                self.logger.info("Route synchronization...")
                 self.sync_routes(self.datapath)
             time.sleep(10)
 
@@ -51,7 +50,7 @@ class FRRInteropRouter(app_manager.RyuApp):
             iface = self.ipr.get_links(oif)[0].get_attr('IFLA_IFNAME')
             port_no = self.port_map.get(iface)
             if not port_no:
-                self.logger.warning(f"Interface {iface} non mappée à un port OpenFlow")
+                self.logger.warning(f"Interface {iface} not mapped to an OpenFlow port")
                 continue
 
             self.logger.info(f"Route {dst_ip} via {iface} (port {port_no})")
@@ -75,7 +74,7 @@ class FRRInteropRouter(app_manager.RyuApp):
         parser = dp.ofproto_parser
         ofp = dp.ofproto
 
-        # Flow par défaut : tout envoyer au contrôleur
+        # Default flow: send everything to the controller
         match = parser.OFPMatch()
         actions = [parser.OFPActionOutput(ofp.OFPP_CONTROLLER)]
         inst = [parser.OFPInstructionActions(ofp.OFPIT_APPLY_ACTIONS, actions)]
