@@ -6,9 +6,9 @@ After=network.target
 User=vagrant
 Group=vagrant
 Environment=PYENV_ROOT=/home/vagrant/.pyenv
-Environment=PATH=/home/vagrant/.pyenv/bin:/home/vagrant/.pyenv/shims:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+Environment=PATH=/home/vagrant/.pyenv/versions/ryu-venv/bin:/home/vagrant/.pyenv/bin:/home/vagrant/.pyenv/shims:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 WorkingDirectory=/opt/ryu
-ExecStart=/home/vagrant/.pyenv/versions/ryu-venv/bin/python /opt/ryu/switch.py
+ExecStart=/home/vagrant/.pyenv/versions/ryu-venv/bin/ryu-manager /opt/ryu/switch.py
 Restart=always
 RestartSec=5
 

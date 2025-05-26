@@ -20,6 +20,7 @@ Vagrant.configure("2") do |config|
     config.vm.define "router1" do |r1|
       r1.vm.hostname = "router1"
       r1.vm.network "private_network", ip: "192.168.56.11"
+      r1.vm.network "private_network", ip: "10.0.0.11"
       r1.vm.provider "virtualbox" do |vb|
         vb.memory = 512
       end
@@ -34,6 +35,7 @@ Vagrant.configure("2") do |config|
     config.vm.define "router2" do |r2|
       r2.vm.hostname = "router2"
       r2.vm.network "private_network", ip: "192.168.56.12"
+      r2.vm.network "private_network", ip: "10.0.0.12"
       r2.vm.provider "virtualbox" do |vb|
         vb.memory = 512
       end
