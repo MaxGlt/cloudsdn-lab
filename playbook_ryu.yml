@@ -26,44 +26,23 @@
           - python3-openssl
         state: present
         update_cache: true
-    
-    - name: Set pyenv root path
-      set_fact:
-        pyenv_root: "/home/vagrant/.pyenv"
 
     - name: Install pyenv
       ansible.builtin.shell: curl https://pyenv.run | bash
-      args:
-        creates: "{{ pyenv_root }}"
-        executable: /bin/bash
 
     - name: Install Python 3.9.13 with pyenv
       ansible.builtin.shell: |
-        export PYENV_ROOT="{{ pyenv_root }}"
-        export PATH="$PYENV_ROOT/bin:$PATH"
+        export PYENV_ROOT="/home/vagrant/.pyenv"
+        [[ -d $PYENV_ROOT/bin ]] && export PATH="$PYENV_ROOT/bin:$PATH"
         eval "$(pyenv init --path)"
         eval "$(pyenv init -)"
-        pyenv install -s 3.9.13
-      args:
-        executable: /bin/bash
-        creates: "{{ pyenv_root }}/versions/3.9.13"
+        pyenv install 3.9.13
     
     - name: Install pyenv-virtualenv plugin
       ansible.builtin.shell: |
-        export PYENV_ROOT="{{ pyenv_root }}"
-        git clone https://github.com/pyenv/pyenv-virtualenv.git $PYENV_ROOT/plugins/pyenv-virtualenv
-      args:
-        executable: /bin/bash
-        creates: "{{ pyenv_root }}/plugins/pyenv-virtualenv"
-    
-    - name: Ensure pyenv is initialized in .bashrc
-      ansible.builtin.lineinfile:
-        path: /home/vagrant/.bashrc
-        line: 'export PATH="$HOME/.pyenv/bin:$PATH" && eval "$(pyenv init --path)" && eval "$(pyenv init -)" && eval "$(pyenv virtualenv-init -)"'
-        insertafter: EOF
-        owner: vagrant
-        group: vagrant
-        mode: '0644'
+        git clone https://github.com/pyenv/pyenv-virtualenv.git $(pyenv root)/plugins/pyenv-virtualenv
+        eval "$(pyenv init --path)"
+        eval "$(pyenv virtualenv-init -)"
 
     - name: Create Ryu directory
       ansible.builtin.file:
@@ -75,15 +54,10 @@
 
     - name: Create virtualenv with pyenv
       ansible.builtin.shell: |
-        export PYENV_ROOT="{{ pyenv_root }}"
-        export PATH="$PYENV_ROOT/bin:$PATH"
+        export PYENV_ROOT="/home/vagrant/.pyenv"
         eval "$(pyenv init --path)"
-        eval "$(pyenv init -)"
         eval "$(pyenv virtualenv-init -)"
         pyenv virtualenv 3.9.13 ryu-venv
-      args:
-        executable: /bin/bash
-        creates: "{{ pyenv_root }}/versions/ryu-venv"
 
     - name: Copy Ryu requirements to directory
       ansible.builtin.copy:
@@ -93,12 +67,10 @@
         owner: vagrant
         group: vagrant
 
-    - name: Install requirements in pyenv virtualenv
+    - name: Install requirements and activate pyenv virtualenv
       ansible.builtin.shell: |
-        export PYENV_ROOT="{{ pyenv_root }}"
-        export PATH="$PYENV_ROOT/bin:$PATH"
+        export PYENV_ROOT="/home/vagrant/.pyenv"
         eval "$(pyenv init --path)"
-        eval "$(pyenv init -)"
         eval "$(pyenv virtualenv-init -)"
         pyenv activate ryu-venv
         pip install -r /opt/ryu/requirements.txt
