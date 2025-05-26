@@ -1,0 +1,40 @@
+---
+- name: Installer Grafana Community Edition sur Debian
+  hosts: grafana
+  become: true
+
+  tasks:
+    - name: Installer les dépendances nécessaires
+      apt:
+        name:
+          - software-properties-common
+          - apt-transport-https
+          - wget
+        state: present
+        update_cache: yes
+
+    - name: Ajouter la clé GPG de Grafana
+      ansible.builtin.apt_key:
+        url: https://apt.grafana.com/gpg.key
+        state: present
+
+    - name: Ajouter le dépôt APT de Grafana
+      ansible.builtin.apt_repository:
+        repo: "deb https://apt.grafana.com stable main"
+        state: present
+        filename: grafana
+
+    - name: Mettre à jour la liste des paquets
+      ansible.builtin.apt:
+        update_cache: yes
+
+    - name: Installer Grafana
+      ansible.builtin.apt:
+        name: grafana
+        state: present
+
+    - name: Activer et démarrer le service Grafana
+      ansible.builtin.systemd:
+        name: grafana-server
+        enabled: true
+        state: started
