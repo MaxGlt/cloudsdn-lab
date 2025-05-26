@@ -27,6 +27,12 @@
         state: present
         update_cache: true
 
+
+    - name: Install Pyenv
+      ansible.builtin.shell: curl https://pyenv.run | bash
+      args:
+        creates: ~/.pyenv
+
     - name: Configure Pyenv environnement
       ansible.builtin.shell: |
         export PYENV_ROOT="$HOME/.pyenv"
@@ -62,6 +68,11 @@
     - name: Create virtualenv with Python 3.9.13
       ansible.builtin.command:
         cmd: pyenv virtualenv 3.9.13 ryu-venv
+        creates: /opt/ryu-venv
+
+    - name: Enable virtualenv
+      ansible.builtin.command:
+        cmd: pyenv activate ryu-venv
         creates: /opt/ryu-venv
 
     - name: Copy Ryu requirements to directory
