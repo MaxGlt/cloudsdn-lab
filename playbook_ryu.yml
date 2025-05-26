@@ -6,10 +6,50 @@
       ansible.builtin.apt:
         name:
           - openvswitch-switch
-          - python3.9
-          - python3.9-venv
+          - wget
+          - git
+          - make
+          - build-essential
+          - libssl-dev
+          - zlib1g-dev
+          - libbz2-dev
+          - libreadline-dev
+          - libsqlite3-dev
+          - curl
+          - llvm
+          - libncurses5-dev
+          - libncursesw5-dev
+          - xz-utils
+          - tk-dev
+          - libffi-dev
+          - liblzma-dev
+          - python3-openssl
         state: present
         update_cache: true
+
+    - name: Configure Pyenv environnement
+      ansible.builtin.shell: |
+        export PYENV_ROOT="$HOME/.pyenv"
+        command -v pyenv >/dev/null || export PATH="$PYENV_ROOT/bin:$PATH"
+        eval "$(pyenv init --path)"
+        eval "$(pyenv init -)"
+      args:
+        creates: "$HOME/.pyenv"
+
+    - name: Install pyenv-virtualenv
+      ansible.builtin.shell: |
+        if [ ! -d "$(pyenv root)/plugins/pyenv-virtualenv" ]; then
+          git clone https://github.com/pyenv/pyenv-virtualenv.git $(pyenv root)/plugins/pyenv-virtualenv
+        fi
+        eval "$(pyenv init --path)"
+        eval "$(pyenv virtualenv-init -)"
+      args:
+        creates: "$(pyenv root)/plugins/pyenv-virtualenv"
+
+    - name: Install specific python version
+      ansible.builtin.command:
+        cmd: pyenv install 3.9.13
+        creates: /opt/ryu-venv
 
     - name: Create Ryu directory
       ansible.builtin.file:
@@ -19,10 +59,18 @@
         group: vagrant
         mode: '0755'
 
-    - name: Create virtualenv with Python 3.9
+    - name: Create virtualenv with Python 3.9.13
       ansible.builtin.command:
-        cmd: python3.9 -m venv /opt/ryu-venv
+        cmd: pyenv virtualenv 3.9.13 ryu-venv
         creates: /opt/ryu-venv
+
+    - name: Copy Ryu requirements to directory
+      ansible.builtin.copy:
+        src: files/requirements.txt
+        dest: /opt/ryu-venv/requirements.txt
+        mode: '0644'
+        owner: vagrant
+        group: vagrant
 
     - name: Install Ryu and dependencies in virtualenv
       ansible.builtin.pip:
