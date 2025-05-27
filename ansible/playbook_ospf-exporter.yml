@@ -1,0 +1,51 @@
+
+---
+- name: Deploy OSPF exporter and configure systemd timer 
+  hosts: frr_routers
+  become: true
+
+  tasks:
+    - name: Copy Python frr_ospf_exporter script
+      ansible.builtin.copy:
+        src: files/frr_ospf_exporter.py
+        dest: /usr/local/bin/frr_ospf_exporter.py
+        mode: '0755'
+
+    - name: Deploy systemd service
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/frr_ospf_exporter.service
+        content: |
+          [Unit]
+          Description=Export OSPF metrics to Prometheus
+          After=network.target
+
+          [Service]
+          Type=oneshot
+          ExecStart=/usr/local/bin/frr_ospf_exporter.py
+        mode: '0644'
+
+    - name: Deploy systemd timer for regular execution
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/frr_ospf_exporter.timer
+        content: |
+          [Unit]
+          Description=Performs OSPF export every minute
+
+          [Timer]
+          OnBootSec=30s
+          OnUnitActiveSec=60s
+          Persistent=true
+
+          [Install]
+          WantedBy=timers.target
+        mode: '0644'
+
+    - name: Reload systemd
+      ansible.builtin.systemd:
+        daemon_reload: yes
+
+    - name: Enable and start timer
+      ansible.builtin.systemd:
+        name: frr_ospf_exporter.timer
+        enabled: yes
+        state: started
