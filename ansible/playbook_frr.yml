@@ -1,3 +1,4 @@
+---
 - name: Install and configure FRRouting on routers
   hosts: all
   become: true
