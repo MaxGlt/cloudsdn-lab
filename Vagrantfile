@@ -11,6 +11,11 @@ Vagrant.configure("2") do |config|
       end
       controller.vm.provision "ansible" do |ansible|
         ansible.playbook = "ansible/playbook_ryu.yml"
+        ansible.inventory_path = "ansible/inventory.ini"
+        ansible.limit = "controller"
+      end
+
+      controller.vm.provision "ansible" do |ansible|
         ansible.playbook = "ansible/playbook_node-exporter.yml"
         ansible.inventory_path = "ansible/inventory.ini"
         ansible.limit = "controller"
@@ -26,11 +31,16 @@ Vagrant.configure("2") do |config|
       end
       r1.vm.provision "ansible" do |ansible|
         ansible.playbook = "ansible/playbook_frr.yml"
+        ansible.inventory_path = "ansible/inventory.ini"
+        ansible.limit = "router1"
+      end
+
+      r1.vm.provision "ansible" do |ansible|
         ansible.playbook = "ansible/playbook_node-exporter.yml"
         ansible.inventory_path = "ansible/inventory.ini"
         ansible.limit = "router1"
       end
-    end
+   end
   
     # Router 2
     config.vm.define "router2" do |r2|
@@ -41,11 +51,16 @@ Vagrant.configure("2") do |config|
       end
       r2.vm.provision "ansible" do |ansible|
         ansible.playbook = "ansible/playbook_frr.yml"
+        ansible.inventory_path = "ansible/inventory.ini"
+        ansible.limit = "router2"
+      end
+
+      r2.vm.provision "ansible" do |ansible|
         ansible.playbook = "ansible/playbook_node-exporter.yml"
         ansible.inventory_path = "ansible/inventory.ini"
         ansible.limit = "router2"
       end
-    end
+   end
 
     # Monitoring (Grafana + Prometeus)
     config.vm.define "monitoring" do |monitoring|
