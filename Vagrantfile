@@ -68,7 +68,6 @@ Vagrant.configure("2") do |config|
       monitoring.vm.network "private_network", ip: "192.168.56.13"
       monitoring.vm.provider "virtualbox" do |vb|
         vb.memory = 1024
-        vb.gui = true
       end
       monitoring.vm.provision "ansible" do |ansible|
         ansible.playbook = "ansible/playbook_monitoring.yml"

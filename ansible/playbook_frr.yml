@@ -29,7 +29,7 @@
           hostname {{ inventory_hostname }}
           log stdout
           !
-          interface eth2
+          interface eth1
           ip address {{ '192.168.56.11/24' if inventory_hostname == 'router1' else '192.168.56.12/24' }}
           !
           router ospf

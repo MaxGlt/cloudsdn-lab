@@ -45,8 +45,6 @@
       file:
         path: "{{ item }}"
         state: directory
-        owner: prometheus
-        group: prometheus
         mode: '0755'
       loop:
         - /etc/prometheus
