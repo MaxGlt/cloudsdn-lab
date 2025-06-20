@@ -39,8 +39,13 @@ Mettre en place une infrastructure réseau automatisée avec Vagrant, intégrant
 
 ```bash
 # Sur les routeurs
+ip a
+ping <ip du voisin>
 vtysh -c "show ip ospf neighbor"
+vtysh -c "show ip ospf database"
 vtysh -c "show ip route"
+vtysh -c "show running-config"
+traceroute <ip du voisin>
 
 # Sur le contrôleur
 ovs-vsctl show

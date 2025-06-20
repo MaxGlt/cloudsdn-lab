@@ -12,14 +12,14 @@
     - name: Enable zebra in FRR daemons config
       ansible.builtin.lineinfile:
         path: /etc/frr/daemons
-        regexp: '^zebra='
-        line: 'zebra=yes'
+        regexp: "^zebra="
+        line: "zebra=yes"
 
     - name: Enable OSPFd in FRR daemons config
       ansible.builtin.lineinfile:
         path: /etc/frr/daemons
-        regexp: '^ospfd='
-        line: 'ospfd=yes'
+        regexp: "^ospfd="
+        line: "ospfd=yes"
 
     - name: Generate FRR configuration file
       ansible.builtin.copy:
@@ -33,9 +33,9 @@
           ip address {{ '192.168.56.11/24' if inventory_hostname == 'router1' else '192.168.56.12/24' }}
           !
           router ospf
-          network 192.168.0.0/24 area 0
+          network 192.168.56.0/24 area 0
           !
-        mode: '0644'
+        mode: "0644"
         owner: frr
         group: frr
 
