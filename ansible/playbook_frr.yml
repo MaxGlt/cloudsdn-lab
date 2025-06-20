@@ -29,12 +29,29 @@
           hostname {{ inventory_hostname }}
           log stdout
           !
+          {% if inventory_hostname == 'router1' %}
           interface eth1
-          ip address {{ '192.168.56.11/24' if inventory_hostname == 'router1' else '192.168.56.12/24' }}
-          !
+          ip address 192.168.56.11/24
+          exit
+          interface eth2
+          ip address 192.168.10.254/24
+          exit
           router ospf
           network 192.168.56.0/24 area 0
-          !
+          network 192.168.10.0/24 area 0
+          exit
+          {% elif inventory_hostname == 'router2' %}
+          interface eth1
+          ip address 192.168.56.12/24
+          exit
+          interface eth2
+          ip address 192.168.20.254/24
+          exit
+          router ospf
+          network 192.168.56.0/24 area 0
+          network 192.168.20.0/24 area 0
+          exit
+          {% endif %}
         mode: "0644"
         owner: frr
         group: frr

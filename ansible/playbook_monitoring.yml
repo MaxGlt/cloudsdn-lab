@@ -8,7 +8,7 @@
 
   tasks:
     - name: Install dependencies
-      apt:
+      ansible.builtin.apt:
         name:
           - software-properties-common
           - apt-transport-https
@@ -45,7 +45,7 @@
       file:
         path: "{{ item }}"
         state: directory
-        mode: '0755'
+        mode: "0755"
       loop:
         - /etc/prometheus
         - /var/lib/prometheus
@@ -66,7 +66,7 @@
         remote_src: yes
         src: "/opt/prometheus-{{ prometheus_version }}.linux-amd64/{{ item }}"
         dest: "/usr/local/bin/{{ item }}"
-        mode: '0755'
+        mode: "0755"
       loop:
         - prometheus
         - promtool
@@ -75,7 +75,7 @@
       copy:
         src: files/prometheus.yml
         dest: /etc/prometheus/prometheus.yml
-        mode: '0644'
+        mode: "0644"
 
     - name: Copy Prometheus configuration files
       copy:
@@ -105,7 +105,7 @@
 
           [Install]
           WantedBy=multi-user.target
-        mode: '0644'
+        mode: "0644"
 
     - name: Start and activate Prometheus
       systemd:
