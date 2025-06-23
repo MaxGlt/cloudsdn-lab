@@ -49,11 +49,11 @@ class FRRInteropRouter(app_manager.RyuApp):
             if 'dst' in route:
                 dst_ip = f"{route.get_attr('RTA_DST')}/{route['dst_len']}"
             else:
-                continue  # skip routes without destination (e.g., local)
+                continue
 
             oif = route.get('oif')
             if not oif:
-                continue  # skip routes without interface
+                continue
             iface = self.ipr.get_links(oif)[0].get_attr('IFLA_IFNAME')
             self.logger.info(f"[DEBUG] Route {dst_ip} via interface {iface}")
             self.logger.info(f"[DEBUG] Port map = {self.port_map}")

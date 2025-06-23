@@ -1,6 +1,5 @@
-
 ---
-- name: Deploy OSPF exporter and configure systemd timer 
+- name: Deploy OSPF exporter and configure systemd timer
   hosts: frr_routers
   become: true
 
@@ -9,7 +8,7 @@
       ansible.builtin.copy:
         src: files/frr_ospf_exporter.py
         dest: /usr/local/bin/frr_ospf_exporter.py
-        mode: '0755'
+        mode: "0755"
 
     - name: Deploy systemd service
       ansible.builtin.copy:
@@ -21,8 +20,8 @@
 
           [Service]
           Type=oneshot
-          ExecStart=/usr/local/bin/frr_ospf_exporter.py
-        mode: '0644'
+          ExecStart=/usr/bin/python3 /usr/local/bin/frr_ospf_exporter.py
+        mode: "0644"
 
     - name: Deploy systemd timer for regular execution
       ansible.builtin.copy:
@@ -38,7 +37,7 @@
 
           [Install]
           WantedBy=timers.target
-        mode: '0644'
+        mode: "0644"
 
     - name: Reload systemd
       ansible.builtin.systemd:

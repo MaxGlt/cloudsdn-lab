@@ -27,13 +27,13 @@ def collect_metrics():
         count = parse_ospf_neighbors(result.stdout)
 
         with open("/var/lib/node_exporter/ospf.prom", "w") as f:
-            f.write(f"# HELP frr_ospf_neighbors_total Nombre total de voisins OSPF\n")
+            f.write(f"# HELP frr_ospf_neighbors_total\n")
             f.write(f"# TYPE frr_ospf_neighbors_total gauge\n")
             f.write(f"frr_ospf_neighbors_total {count}\n")
 
     except Exception as e:
         with open("/var/lib/node_exporter/ospf.prom", "w") as f:
-            f.write(f"# HELP frr_ospf_neighbors_total Nombre total de voisins OSPF\n")
+            f.write(f"# HELP frr_ospf_neighbors_total\n")
             f.write(f"# TYPE frr_ospf_neighbors_total gauge\n")
             f.write(f"frr_ospf_neighbors_total 0\n")
 
