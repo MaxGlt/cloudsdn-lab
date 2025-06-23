@@ -15,10 +15,15 @@ class FRRInteropRouter(app_manager.RyuApp):
     def __init__(self, *args, **kwargs):
         super(FRRInteropRouter, self).__init__(*args, **kwargs)
         self.ipr = IPRoute()
+        self.logger.info("List of visible interfaces:")
+        for link in self.ipr.get_links():
+            name = link.get_attr('IFLA_IFNAME')
+            index = link['index']
+            self.logger.info(f"Interface detected : {name}, index {index}")
         self.datapath = None
         self.port_map = {
-            "veth1": 1,
-            "veth2": 2
+            "r1-veth": 1,
+            "r2-veth": 2
         }
         threading.Thread(target=self.route_sync_loop, daemon=True).start()
 
@@ -33,7 +38,17 @@ class FRRInteropRouter(app_manager.RyuApp):
         ofp = dp.ofproto
         parser = dp.ofproto_parser
 
-        routes = self.ipr.get_routes(family=2)  # IPv4
+        del_flows = parser.OFPFlowMod(
+            datapath=dp,
+            command=ofp.OFPFC_DELETE,
+            out_port=ofp.OFPP_ANY,
+            out_group=ofp.OFPG_ANY,
+            priority=10,
+            match=parser.OFPMatch()
+        )
+        dp.send_msg(del_flows)
+
+        routes = self.ipr.get_routes(family=2)
 
         for route in routes:
             dst_ip = "0.0.0.0/0"
