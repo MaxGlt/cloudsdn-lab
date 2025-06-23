@@ -4,11 +4,11 @@
 
 Concevoir et déployer une infrastructure réseau virtualisée complète, incluant :
 
-- ✅ Un contrôleur SDN (Ryu + Open vSwitch)
-- ✅ Deux routeurs dynamiques avec OSPF (FRRouting)
-- ✅ Une automatisation complète via Vagrant + Ansible
-- ✅ Une injection automatique de règles OpenFlow selon les routes OSPF
-- ✅ Un monitoring réseau avec Prometheus + Grafana
+- Un contrôleur SDN (Ryu + Open vSwitch)
+- Deux routeurs dynamiques avec OSPF (FRRouting)
+- Une automatisation complète via Vagrant + Ansible
+- Une injection automatique de règles OpenFlow selon les routes OSPF
+- Un monitoring réseau avec Prometheus + Grafana
 
 ---
 
@@ -77,33 +77,25 @@ sudo tail -f /var/log/syslog | grep ryu
 
 ### Monitoring
 
-- Accès Grafana : `http://192.168.56.13:3000`
-- Exporters :
-  - `:9100` pour `node-exporter`
-  - `:9117` pour `ospf-exporter`
+### [Accès Grafana](http://localhost:3000)
 
----
+1. Informations d'identification :
+  - User : admin
+  - Password : admin
 
-## Captures à inclure
+2. Cliquer sur Skip
 
-- Routage (`ip route`, `vtysh`)
-- Table OSPF (`ospf neighbor`, `ospf database`)
-- Flux OVS (`ovs-ofctl dump-flows`)
-- Interfaces réseau (`ip -br a`)
-- Interface Grafana ou Prometheus (dashboard)
-- Schéma réseau final
-
----
+### [Accès Prometheus](http://localhost:9090)
 
 ## Schéma Réseau
 
-📌 À compléter : inclure topologie SDN, plan d’adressage, et flux OSPF + OpenFlow
+À compléter : inclure topologie SDN, plan d’adressage, et flux OSPF + OpenFlow
 
 ---
 
 ## Équipe projet
 
-| Rôle                 | Nom                      |
+| Rôle                 | Nom                       |
 |----------------------|---------------------------|
 | Chef de projet       | ...                       |
 | Architecte réseau    | ...                       |
@@ -118,40 +110,39 @@ sudo tail -f /var/log/syslog | grep ryu
 ### Problèmes rencontrés
 
 - Interfaces VirtualBox non détectées → résolu avec `auto_config: false`
-- Incompatibilité Netplan (sur Debian) → remplacé par `interfaces.d/`
 - Besoin d'IP statiques pour OSPF inter-VMs
 
 ### Solutions apportées
 
 - Utilisation de `intnet` + IP statique via Ansible
 - Port OVS configuré sans IP côté controller
-- Monitoring modulaire activable à la demande
-
-### Améliorations possibles
-
-- Ajout de BGP (multi-protocol)
-- Overlay GRE ou VXLAN pour test de tunnels
-- CI/CD avec GitLab pour déploiement auto
-- Simulation de panne avec convergence OSPF
-
----
 
 ## Structure du dépôt
 
 ```
 .
-├── Vagrantfile
-├── inventory.ini
-├── switch.py
-├── playbook_ryu.yml
-├── playbook_frr.yml
-├── playbook_node-exporter.yml
-├── playbook_ospf-exporter.yml
-├── playbook_client.yml
-├── playbook_interfaces.yml
-└── templates/
-    ├── interfaces_router1.j2
-    └── interfaces_router2.j2
+├── ansible
+│   ├── files
+│   │   ├── 1860_rev41.json
+│   │   ├── frr_ospf_exporter.py
+│   │   ├── prometheus.yml
+│   │   ├── requirements.txt
+│   │   ├── ryu.service
+│   │   └── switch.py
+│   ├── inventory.ini
+│   ├── playbook_client.yml
+│   ├── playbook_frr.yml
+│   ├── playbook_interfaces.yml
+│   ├── playbook_monitoring.yml
+│   ├── playbook_node-exporter.yml
+│   ├── playbook_ospf-exporter.yml
+│   ├── playbook_ryu.yml
+│   └── templates
+│       ├── frr.conf.j2
+│       ├── interfaces_router1.j2
+│       └── interfaces_router2.j2
+├── README.md
+└── Vagrantfile
 ```
 
 ---
@@ -160,11 +151,4 @@ sudo tail -f /var/log/syslog | grep ryu
 
 ```bash
 vagrant up
-```
-
-Puis pour tester :
-
-```bash
-vagrant ssh router1
-vtysh -c "show ip ospf neighbor"
 ```
