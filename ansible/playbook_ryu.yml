@@ -2,21 +2,32 @@
 - name: Setup controller with OVS and Ryu
   hosts: controller
   become: true
+
+  vars:
+    pyenv_root: /home/vagrant/.pyenv
+    python_version: 3.9.13
+    virtualenv_name: ryu-venv
+    ryu_app_dir: /opt/ryu
+
+  pre_tasks:
+    - name: Ensure APT cache is updated
+      ansible.builtin.apt:
+        update_cache: true
+
   tasks:
-    - name: Install OVS and dependencies
+    - name: Install required system packages
       ansible.builtin.apt:
         name:
           - openvswitch-switch
-          - wget
           - git
-          - make
+          - curl
+          - wget
           - build-essential
           - libssl-dev
           - zlib1g-dev
           - libbz2-dev
           - libreadline-dev
           - libsqlite3-dev
-          - curl
           - llvm
           - libncurses5-dev
           - libncursesw5-dev
@@ -26,119 +37,114 @@
           - liblzma-dev
           - python3-openssl
         state: present
-        update_cache: true
 
-    - name: Install pyenv for vagrant user
-      ansible.builtin.shell: curl https://pyenv.run | bash
+    - name: Install pyenv
       become_user: vagrant
+      ansible.builtin.shell: curl https://pyenv.run | bash
       args:
         executable: /bin/bash
         chdir: /home/vagrant
+      environment:
+        HOME: /home/vagrant
 
-    - name: Install Python 3.9.13 with pyenv
+    - name: Install Python {{ python_version }} using pyenv
+      become_user: vagrant
       ansible.builtin.shell: |
-        export PYENV_ROOT="/home/vagrant/.pyenv"
-        export PATH="$PYENV_ROOT/bin:$PYENV_ROOT/shims:$PATH"
+        export PYENV_ROOT="{{ pyenv_root }}"
+        export PATH="$PYENV_ROOT/bin:$PATH"
         eval "$(pyenv init --path)"
         eval "$(pyenv init -)"
-        pyenv install 3.9.13
-      become_user: vagrant
+        pyenv install -s {{ python_version }}
       args:
         executable: /bin/bash
 
     - name: Install pyenv-virtualenv plugin
-      ansible.builtin.shell: |
-        export PYENV_ROOT="/home/vagrant/.pyenv"
-        export PATH="$PYENV_ROOT/bin:$PYENV_ROOT/shims:$PATH"
-        git clone https://github.com/pyenv/pyenv-virtualenv.git "$PYENV_ROOT/plugins/pyenv-virtualenv"
-        eval "$(pyenv init --path)"
-        eval "$(pyenv init -)"
-        eval "$(pyenv virtualenv-init -)"
       become_user: vagrant
+      ansible.builtin.git:
+        repo: https://github.com/pyenv/pyenv-virtualenv.git
+        dest: "{{ pyenv_root }}/plugins/pyenv-virtualenv"
+
+    - name: Create virtualenv {{ virtualenv_name }}
+      become_user: vagrant
+      ansible.builtin.shell: |
+        export PYENV_ROOT="{{ pyenv_root }}"
+        export PATH="$PYENV_ROOT/bin:$PATH"
+        eval "$(pyenv init --path)"
+        eval "$(pyenv virtualenv-init -)"
+        pyenv virtualenv {{ python_version }} {{ virtualenv_name }}
       args:
         executable: /bin/bash
 
-    - name: Create Ryu directory
+    - name: Create directory for Ryu app
       ansible.builtin.file:
-        path: /opt/ryu
+        path: "{{ ryu_app_dir }}"
         state: directory
         owner: vagrant
         group: vagrant
-        mode: '0755'
+        mode: "0755"
 
-    - name: Create virtualenv with pyenv
-      ansible.builtin.shell: |
-        export PYENV_ROOT="/home/vagrant/.pyenv"
-        export PATH="$PYENV_ROOT/bin:$PYENV_ROOT/shims:$PATH"
-        eval "$(pyenv init --path)"
-        eval "$(pyenv virtualenv-init -)"
-        pyenv virtualenv 3.9.13 ryu-venv
-      become_user: vagrant
-      args:
-        executable: /bin/bash
-
-    - name: Copy Ryu requirements to directory
+    - name: Copy requirements.txt
       ansible.builtin.copy:
         src: files/requirements.txt
-        dest: /opt/ryu/requirements.txt
-        mode: '0644'
+        dest: "{{ ryu_app_dir }}/requirements.txt"
         owner: vagrant
         group: vagrant
+        mode: "0644"
 
-    - name: Install requirements and activate pyenv virtualenv
+    - name: Install Python dependencies in virtualenv
+      become_user: vagrant
       ansible.builtin.shell: |
-        export PYENV_ROOT="/home/vagrant/.pyenv"
-        export PATH="$PYENV_ROOT/bin:$PYENV_ROOT/shims:$PATH"
+        export PYENV_ROOT="{{ pyenv_root }}"
         export PATH="$PYENV_ROOT/bin:$PATH"
         eval "$(pyenv init --path)"
         eval "$(pyenv init -)"
         eval "$(pyenv virtualenv-init -)"
-        pyenv shell ryu-venv
-        pip install -r /opt/ryu/requirements.txt
-      become_user: vagrant
+        pyenv shell {{ virtualenv_name }}
+        pip install -r {{ ryu_app_dir }}/requirements.txt
       args:
         executable: /bin/bash
-        
-    - name: Create bridge OVS and add ports
+
+    - name: Attach VirtualBox interfaces to OVS bridge
       ansible.builtin.shell: |
         ovs-vsctl add-br br0 || true
-        ip link add veth1 type veth peer name r1-veth
-        ip link add veth2 type veth peer name r2-veth
-        ip link set veth1 up
-        ip link set veth2 up
-        ovs-vsctl add-port br0 veth1 || true
-        ovs-vsctl add-port br0 veth2 || true
+        ovs-vsctl add-port br0 eth2 || true
+        ovs-vsctl add-port br0 eth3 || true
+        ip link set eth2 up
+        ip link set eth3 up
         ovs-vsctl set-controller br0 tcp:192.168.56.10:6633
-        ip link set r1-veth up
-        ip link set r2-veth up
-        ip addr add 10.0.0.1/24 dev r1-veth
-        ip addr add 10.0.0.2/24 dev r2-veth
       args:
-        creates: /opt/ryu/switch.py
         executable: /bin/bash
 
-    - name: Copy Ryu script to the controller
+    - name: Copy Ryu application script
       ansible.builtin.copy:
         src: files/switch.py
-        dest: /opt/ryu/switch.py
-        mode: '0755'
+        dest: "{{ ryu_app_dir }}/switch.py"
         owner: vagrant
         group: vagrant
+        mode: "0755"
 
-    - name: Copy systemd service file
+    - name: Copy systemd service for Ryu
       ansible.builtin.copy:
         src: files/ryu.service
         dest: /etc/systemd/system/ryu.service
-        mode: '0644'
         owner: root
         group: root
+        mode: "0644"
 
     - name: Reload systemd daemon
       ansible.builtin.systemd:
         daemon_reload: true
 
-    - name: Activate and start the service
+    - name: Enable and start Ryu service
       ansible.builtin.systemd:
         name: ryu
         enabled: true
         state: started
+
+    - name: Add static route to client1 subnet
+      ansible.builtin.command: ip route add 192.168.10.0/24 dev eth2
+      ignore_errors: true
+
+    - name: Add static route to client2 subnet
+      ansible.builtin.command: ip route add 192.168.20.0/24 dev eth3
+      ignore_errors: true

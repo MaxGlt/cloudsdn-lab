@@ -15,22 +15,14 @@ class FRRInteropRouter(app_manager.RyuApp):
     def __init__(self, *args, **kwargs):
         super(FRRInteropRouter, self).__init__(*args, **kwargs)
         self.ipr = IPRoute()
-        self.logger.info("List of visible interfaces:")
-        for link in self.ipr.get_links():
-            name = link.get_attr('IFLA_IFNAME')
-            index = link['index']
-            self.logger.info(f"Interface detected : {name}, index {index}")
         self.datapath = None
-        self.port_map = {
-            "r1-veth": 1,
-            "r2-veth": 2
-        }
+        self.port_map = {}
         threading.Thread(target=self.route_sync_loop, daemon=True).start()
 
     def route_sync_loop(self):
         while True:
             if self.datapath:
-                self.logger.info("Route synchronization...")
+                self.logger.info("[SYNC] Syncing routes with OpenFlow table...")
                 self.sync_routes(self.datapath)
             time.sleep(10)
 
@@ -38,6 +30,7 @@ class FRRInteropRouter(app_manager.RyuApp):
         ofp = dp.ofproto
         parser = dp.ofproto_parser
 
+        # Clear previous flows (priority 10 only)
         del_flows = parser.OFPFlowMod(
             datapath=dp,
             command=ofp.OFPFC_DELETE,
@@ -48,30 +41,40 @@ class FRRInteropRouter(app_manager.RyuApp):
         )
         dp.send_msg(del_flows)
 
+        # Get system routes
         routes = self.ipr.get_routes(family=2)
 
         for route in routes:
             dst_ip = "0.0.0.0/0"
             if 'dst' in route:
                 dst_ip = f"{route.get_attr('RTA_DST')}/{route['dst_len']}"
-            gateway = None
-            for attr in route['attrs']:
-                if attr[0] == 'RTA_GATEWAY':
-                    gateway = attr[1]
+            else:
+                continue  # skip routes without destination (e.g., local)
 
             oif = route.get('oif')
             if not oif:
-                continue
+                continue  # skip routes without interface
             iface = self.ipr.get_links(oif)[0].get_attr('IFLA_IFNAME')
+            self.logger.info(f"[DEBUG] Route {dst_ip} via interface {iface}")
+            self.logger.info(f"[DEBUG] Port map = {self.port_map}")
             port_no = self.port_map.get(iface)
             if not port_no:
-                self.logger.warning(f"Interface {iface} not mapped to an OpenFlow port")
+                self.logger.warning(f"[SKIP] Interface {iface} not mapped to OpenFlow port")
                 continue
 
-            self.logger.info(f"Route {dst_ip} via {iface} (port {port_no})")
-            net = ipaddress.IPv4Network(dst_ip, strict=False)
+            try:
+                net = ipaddress.IPv4Network(dst_ip, strict=False)
+            except ValueError:
+                self.logger.warning(f"[SKIP] Invalid route: {dst_ip}")
+                continue
 
-            match = parser.OFPMatch(eth_type=0x0800, ipv4_dst=(str(net.network_address), str(net.netmask)))
+            self.logger.info(f"[ADD] Route {dst_ip} via {iface} (port {port_no})")
+            self.logger.info(f"[ROUTES] Current routes: {[r.get_attr('RTA_DST') for r in routes if 'dst' in r]}")
+
+            match = parser.OFPMatch(
+                eth_type=0x0800,  # IPv4
+                ipv4_dst=(str(net.network_address), str(net.netmask))
+            )
             actions = [parser.OFPActionOutput(port_no)]
             inst = [parser.OFPInstructionActions(ofp.OFPIT_APPLY_ACTIONS, actions)]
             mod = parser.OFPFlowMod(
@@ -89,13 +92,28 @@ class FRRInteropRouter(app_manager.RyuApp):
         parser = dp.ofproto_parser
         ofp = dp.ofproto
 
-        # Default flow: send everything to the controller
+        req = parser.OFPPortDescStatsRequest(dp, 0)
+        dp.send_msg(req)
+        self.logger.info("[INIT] Sent port description request")
+
+        # Default flow: send unmatched traffic to controller
         match = parser.OFPMatch()
         actions = [parser.OFPActionOutput(ofp.OFPP_CONTROLLER)]
         inst = [parser.OFPInstructionActions(ofp.OFPIT_APPLY_ACTIONS, actions)]
-        dp.send_msg(parser.OFPFlowMod(
+        mod = parser.OFPFlowMod(
             datapath=dp,
             priority=0,
             match=match,
             instructions=inst
-        ))
+        )
+        dp.send_msg(mod)
+
+        self.logger.info("[INIT] Waiting for port descriptions to build port_map...")
+
+    @set_ev_cls(ofp_event.EventOFPPortDescStatsReply, MAIN_DISPATCHER)
+    def port_desc_handler(self, ev):
+        ports = ev.msg.body
+        self.port_map = {p.name.decode(): p.port_no for p in ports}
+        self.logger.info(f"[PORTS] Updated OpenFlow port mapping: {self.port_map}")
+        if self.datapath:
+            self.sync_routes(self.datapath)

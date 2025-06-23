@@ -1,7 +1,11 @@
 ---
 - name: Install and configure FRRouting on routers
-  hosts: all
+  hosts: frr_routers
   become: true
+
+  vars:
+    frr_config_path: /etc/frr/frr.conf
+
   tasks:
     - name: Install FRR package
       ansible.builtin.apt:
@@ -9,54 +13,27 @@
         state: present
         update_cache: true
 
-    - name: Enable zebra in FRR daemons config
+    - name: Enable zebra daemon
       ansible.builtin.lineinfile:
         path: /etc/frr/daemons
         regexp: "^zebra="
         line: "zebra=yes"
 
-    - name: Enable OSPFd in FRR daemons config
+    - name: Enable ospfd daemon
       ansible.builtin.lineinfile:
         path: /etc/frr/daemons
         regexp: "^ospfd="
         line: "ospfd=yes"
 
-    - name: Generate FRR configuration file
-      ansible.builtin.copy:
-        dest: /etc/frr/frr.conf
-        content: |
-          frr defaults traditional
-          hostname {{ inventory_hostname }}
-          log stdout
-          !
-          {% if inventory_hostname == 'router1' %}
-          interface eth1
-          ip address 192.168.56.11/24
-          exit
-          interface eth2
-          ip address 192.168.10.254/24
-          exit
-          router ospf
-          network 192.168.56.0/24 area 0
-          network 192.168.10.0/24 area 0
-          exit
-          {% elif inventory_hostname == 'router2' %}
-          interface eth1
-          ip address 192.168.56.12/24
-          exit
-          interface eth2
-          ip address 192.168.20.254/24
-          exit
-          router ospf
-          network 192.168.56.0/24 area 0
-          network 192.168.20.0/24 area 0
-          exit
-          {% endif %}
-        mode: "0644"
+    - name: Create FRR configuration
+      ansible.builtin.template:
+        src: templates/frr.conf.j2
+        dest: "{{ frr_config_path }}"
         owner: frr
         group: frr
+        mode: "0644"
 
-    - name: Enable and restart FRR service
+    - name: Enable and restart FRR
       ansible.builtin.systemd:
         name: frr
         enabled: true
