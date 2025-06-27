@@ -50,11 +50,12 @@ ping 192.168.10.2   # client1
 
 # Depuis router2
 ping 10.0.1.2       # loopback test
-ping 192.168.20.2   # client1
+ping 192.168.20.2   # client2
 
 # Depuis controller
 sudo ovs-vsctl show
-sudo ovs-ofctl dump-flows br0
+sudo ovs-ofctl -O OpenFlow13 dump-flows br0
+sudo ovs-ofctl -O OpenFlow13 --no-names dump-flows br0
 ```
 
 ### FRRouting (vtysh)

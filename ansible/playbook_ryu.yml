@@ -104,17 +104,6 @@
       args:
         executable: /bin/bash
 
-    - name: Attach VirtualBox interfaces to OVS bridge
-      ansible.builtin.shell: |
-        ovs-vsctl add-br br0 || true
-        ovs-vsctl add-port br0 eth2 || true
-        ovs-vsctl add-port br0 eth3 || true
-        ip link set eth2 up
-        ip link set eth3 up
-        ovs-vsctl set-controller br0 tcp:192.168.56.10:6633
-      args:
-        executable: /bin/bash
-
     - name: Copy Ryu application script
       ansible.builtin.copy:
         src: files/switch.py
@@ -141,10 +130,23 @@
         enabled: true
         state: started
 
-    - name: Add static route to client1 subnet
-      ansible.builtin.command: ip route add 192.168.10.0/24 dev eth2
+    - name: Attach VirtualBox interfaces to OVS bridge
+      ansible.builtin.shell: |
+        ovs-vsctl add-br br0 || true
+        ovs-vsctl add-port br0 eth2 || true
+        ovs-vsctl add-port br0 eth3 || true
+        ip link set br0 up
+        ip link set eth2 up
+        ip link set eth3 up
+        ovs-vsctl set-controller br0 tcp:192.168.56.10:6633
+        ovs-vsctl set bridge br0 protocols=OpenFlow13
+      args:
+        executable: /bin/bash
+
+    - name: Attribute static ip to client1
+      ansible.builtin.command: ip addr add 192.168.10.1/24 dev eth2
       ignore_errors: true
 
-    - name: Add static route to client2 subnet
-      ansible.builtin.command: ip route add 192.168.20.0/24 dev eth3
+    - name: Attribute static ip to client2
+      ansible.builtin.command: ip addr add 192.168.20.1/24 dev eth3
       ignore_errors: true
