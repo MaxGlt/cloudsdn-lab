@@ -35,7 +35,7 @@
         state: present
 
     - name: Configure Grafana admin credentials
-      blockinfile:
+      ansible.builtin.blockinfile:
         path: /etc/grafana/grafana.ini
         marker: "# {mark} ANSIBLE MANAGED BLOCK"
         block: |
@@ -50,7 +50,7 @@
         state: restarted
 
     - name: Wait for Grafana to be available
-      uri:
+      ansible.builtin.uri:
         url: http://localhost:3000/api/health
         method: GET
         status_code: 200
@@ -61,7 +61,7 @@
 
     # PROMETHEUS
     - name: Create Prometheus folders
-      file:
+      ansible.builtin.file:
         path: "{{ item }}"
         state: directory
         mode: "0755"
@@ -70,18 +70,18 @@
         - /var/lib/prometheus
 
     - name: Download Prometheus {{ prometheus_version }}
-      get_url:
+      ansible.builtin.get_url:
         url: "https://github.com/prometheus/prometheus/releases/download/v{{ prometheus_version }}/prometheus-{{ prometheus_version }}.linux-amd64.tar.gz"
         dest: /tmp/prometheus.tar.gz
 
     - name: Extract Prometheus
-      unarchive:
+      ansible.builtin.unarchive:
         src: /tmp/prometheus.tar.gz
         dest: /opt/
         remote_src: yes
 
     - name: Copy Prometheus binaries
-      copy:
+      ansible.builtin.copy:
         remote_src: yes
         src: "/opt/prometheus-{{ prometheus_version }}.linux-amd64/{{ item }}"
         dest: "/usr/local/bin/{{ item }}"
@@ -90,14 +90,14 @@
         - prometheus
         - promtool
 
-    - name: Copy custom prometheus.yml configuration
-      copy:
-        src: files/prometheus.yml
-        dest: /etc/prometheus/prometheus.yml
+    - name: Create Prometheus configuration
+      ansible.builtin.template:
+        src: templates/prometheus.j2
+        dest: "/etc/prometheus/prometheus.yml"
         mode: "0644"
 
     - name: Copy Prometheus configuration files
-      copy:
+      ansible.builtin.copy:
         remote_src: yes
         src: "/opt/prometheus-{{ prometheus_version }}.linux-amd64/{{ item }}"
         dest: "/etc/prometheus/{{ item }}"
@@ -106,7 +106,7 @@
         - console_libraries
 
     - name: Create Prometheus systemd service
-      copy:
+      ansible.builtin.copy:
         dest: /etc/systemd/system/prometheus.service
         content: |
           [Unit]
@@ -127,13 +127,13 @@
         mode: "0644"
 
     - name: Start and activate Prometheus
-      systemd:
+      ansible.builtin.systemd:
         name: prometheus
         enabled: true
         state: started
 
     - name: Add Prometheus datasource to Grafana
-      uri:
+      ansible.builtin.uri:
         url: http://localhost:3000/api/datasources
         method: POST
         url_username: admin
@@ -155,7 +155,7 @@
       ignore_errors: yes
 
     - name: Import Grafana dashboard from local JSON
-      uri:
+      ansible.builtin.uri:
         url: http://localhost:3000/api/dashboards/import
         method: POST
         url_username: admin

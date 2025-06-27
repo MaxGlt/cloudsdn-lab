@@ -7,7 +7,7 @@ Concevoir et déployer une infrastructure réseau virtualisée complète, inclua
 - Un contrôleur SDN (Ryu + Open vSwitch)
 - Deux routeurs dynamiques avec OSPF (FRRouting)
 - Une automatisation complète via Vagrant + Ansible
-- Une injection automatique de règles OpenFlow selon les routes OSPF
+- Une injection de règles OpenFlow
 - Un monitoring réseau avec Prometheus + Grafana
 
 ---
@@ -23,7 +23,7 @@ Concevoir et déployer une infrastructure réseau virtualisée complète, inclua
 | `router2`   | Routeur OSPF + Client 2     | `192.168.56.12`, `10.0.1.2`, `192.168.20.254` |
 | `client1`   | Hôte client 1              | `192.168.10.2`                         |
 | `client2`   | Hôte client 2              | `192.168.20.2`                         |
-| `monitoring` (optionnel) | Grafana + Prometheus | `192.168.56.13`                      |
+| `monitoring`| Grafana + Prometheus | `192.168.56.13`                      |
 
 ---
 
@@ -71,7 +71,7 @@ sudo vtysh -c "show running-config"
 ### OpenFlow (Ryu)
 
 ```bash
-sudo ovs-ofctl dump-flows br0
+sudo ovs-ofctl -O OpenFlow13 dump-flows br0
 sudo systemctl status ryu
 sudo tail -f /var/log/syslog | grep ryu
 ```
@@ -86,25 +86,9 @@ sudo tail -f /var/log/syslog | grep ryu
 
 2. Cliquer sur Skip
 
+3. Aller dans Dashboard --> Node Exporter Full
+
 ### [Accès Prometheus](http://localhost:9090)
-
-## Schéma Réseau
-
-À compléter : inclure topologie SDN, plan d’adressage, et flux OSPF + OpenFlow
-
----
-
-## Équipe projet
-
-| Rôle                 | Nom                       |
-|----------------------|---------------------------|
-| Chef de projet       | ...                       |
-| Architecte réseau    | ...                       |
-| Intégrateur Ansible  | ...                       |
-| DevOps               | ...                       |
-| Rédacteur technique  | ...                       |
-
----
 
 ## Retour d’expérience
 
@@ -126,7 +110,6 @@ sudo tail -f /var/log/syslog | grep ryu
 │   ├── files
 │   │   ├── 1860_rev41.json
 │   │   ├── frr_ospf_exporter.py
-│   │   ├── prometheus.yml
 │   │   ├── requirements.txt
 │   │   ├── ryu.service
 │   │   └── switch.py
@@ -141,7 +124,10 @@ sudo tail -f /var/log/syslog | grep ryu
 │   └── templates
 │       ├── frr.conf.j2
 │       ├── interfaces_router1.j2
-│       └── interfaces_router2.j2
+│       ├── interfaces_router2.j2
+│       └── prometheus.j2
+├── docs
+│   └── Cahier_Des_Charges_Projet_Reseau_Cloud.pdf
 ├── README.md
 └── Vagrantfile
 ```
