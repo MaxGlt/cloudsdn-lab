@@ -1,0 +1,20 @@
+---
+- name: Configure client host
+  hosts: all
+  become: true
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+  tasks:
+    - name: Ensure default route is set to router
+      ansible.builtin.command: ip route add default via {{ gateway }}
+      register: add_default_route
+      failed_when: add_default_route.rc != 0 and 'File exists' not in add_default_route.stderr
+      changed_when: add_default_route.rc == 0
+
+    - name: Install basic tools (ping, curl, etc.)
+      ansible.builtin.apt:
+        name:
+          - iputils-ping
+          - curl
+        state: present
+        update_cache: yes

@@ -1,0 +1,63 @@
+---
+- name: Install and configure Node Exporter
+  hosts: all
+  become: true
+  vars:
+    node_exporter_version: "1.8.1"
+
+  tasks:
+    - name: Create node_exporter user
+      ansible.builtin.user:
+        name: node_exporter
+        shell: /usr/sbin/nologin
+        system: yes
+        create_home: no
+
+    - name: Download Node Exporter
+      ansible.builtin.get_url:
+        url: "https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter_version }}/node_exporter-{{ node_exporter_version }}.linux-amd64.tar.gz"
+        dest: /tmp/node_exporter.tar.gz
+
+    - name: Extract Node Exporter
+      ansible.builtin.unarchive:
+        src: /tmp/node_exporter.tar.gz
+        dest: /opt/
+        remote_src: yes
+
+    - name: Copy binary to /usr/local/bin
+      ansible.builtin.copy:
+        remote_src: yes
+        src: "/opt/node_exporter-{{ node_exporter_version }}.linux-amd64/node_exporter"
+        dest: "/usr/local/bin/node_exporter"
+        mode: '0755'
+
+    - name: Create textfile collector
+      ansible.builtin.file:
+        path: /var/lib/node_exporter
+        state: directory
+        owner: node_exporter
+        group: node_exporter
+        mode: '0755'
+
+    - name: Create Node Exporter systemd service
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/node_exporter.service
+        content: |
+          [Unit]
+          Description=Node Exporter
+          After=network.target
+
+          [Service]
+          User=node_exporter
+          ExecStart=/usr/local/bin/node_exporter --collector.textfile.directory=/var/lib/node_exporter
+
+          [Install]
+          WantedBy=default.target
+        mode: '0644'
+
+    - name: Activate et start Node Exporter
+      ansible.builtin.systemd:
+        name: node_exporter
+        daemon_reload: yes
+        enabled: yes
+        state: started
