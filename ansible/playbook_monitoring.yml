@@ -1,0 +1,179 @@
+---
+- name: Install Grafana and Prometheus (Debian)
+  hosts: monitoring
+  become: true
+  vars:
+    prometheus_version: "2.51.1"
+    node_exporter_version: "1.8.1"
+
+  tasks:
+    - name: Install dependencies
+      ansible.builtin.apt:
+        name:
+          - software-properties-common
+          - apt-transport-https
+          - wget
+          - curl
+        state: present
+        update_cache: yes
+
+    # GRAFANA
+    - name: Add Grafana GPG key
+      ansible.builtin.apt_key:
+        url: https://apt.grafana.com/gpg.key
+        state: present
+
+    - name: Add Grafana APT repository
+      ansible.builtin.apt_repository:
+        repo: "deb https://apt.grafana.com stable main"
+        state: present
+        filename: grafana
+
+    - name: Install Grafana
+      ansible.builtin.apt:
+        name: grafana
+        state: present
+
+    - name: Configure Grafana admin credentials
+      ansible.builtin.blockinfile:
+        path: /etc/grafana/grafana.ini
+        marker: "# {mark} ANSIBLE MANAGED BLOCK"
+        block: |
+          [security]
+          admin_user = admin
+          admin_password = admin
+
+    - name: Enable and start Grafana service
+      ansible.builtin.systemd:
+        name: grafana-server
+        enabled: true
+        state: restarted
+
+    - name: Wait for Grafana to be available
+      ansible.builtin.uri:
+        url: http://localhost:3000/api/health
+        method: GET
+        status_code: 200
+      register: result
+      retries: 10
+      delay: 5
+      until: result.status == 200
+
+    # PROMETHEUS
+    - name: Create Prometheus folders
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0755"
+      loop:
+        - /etc/prometheus
+        - /var/lib/prometheus
+
+    - name: Download Prometheus {{ prometheus_version }}
+      ansible.builtin.get_url:
+        url: "https://github.com/prometheus/prometheus/releases/download/v{{ prometheus_version }}/prometheus-{{ prometheus_version }}.linux-amd64.tar.gz"
+        dest: /tmp/prometheus.tar.gz
+
+    - name: Extract Prometheus
+      ansible.builtin.unarchive:
+        src: /tmp/prometheus.tar.gz
+        dest: /opt/
+        remote_src: yes
+
+    - name: Copy Prometheus binaries
+      ansible.builtin.copy:
+        remote_src: yes
+        src: "/opt/prometheus-{{ prometheus_version }}.linux-amd64/{{ item }}"
+        dest: "/usr/local/bin/{{ item }}"
+        mode: "0755"
+      loop:
+        - prometheus
+        - promtool
+
+    - name: Create Prometheus configuration
+      ansible.builtin.template:
+        src: templates/prometheus.j2
+        dest: "/etc/prometheus/prometheus.yml"
+        mode: "0644"
+
+    - name: Copy Prometheus configuration files
+      ansible.builtin.copy:
+        remote_src: yes
+        src: "/opt/prometheus-{{ prometheus_version }}.linux-amd64/{{ item }}"
+        dest: "/etc/prometheus/{{ item }}"
+      loop:
+        - consoles
+        - console_libraries
+
+    - name: Create Prometheus systemd service
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/prometheus.service
+        content: |
+          [Unit]
+          Description=Prometheus
+          Wants=network-online.target
+          After=network-online.target
+
+          [Service]
+          User=root
+          ExecStart=/usr/local/bin/prometheus \
+            --config.file=/etc/prometheus/prometheus.yml \
+            --storage.tsdb.path=/var/lib/prometheus \
+            --web.console.templates=/etc/prometheus/consoles \
+            --web.console.libraries=/etc/prometheus/console_libraries
+
+          [Install]
+          WantedBy=multi-user.target
+        mode: "0644"
+
+    - name: Start and activate Prometheus
+      ansible.builtin.systemd:
+        name: prometheus
+        enabled: true
+        state: started
+
+    - name: Add Prometheus datasource to Grafana
+      ansible.builtin.uri:
+        url: http://localhost:3000/api/datasources
+        method: POST
+        url_username: admin
+        url_password: admin
+        force_basic_auth: true
+        headers:
+          Content-Type: "application/json"
+        body: |
+          {
+            "name": "Prometheus",
+            "type": "prometheus",
+            "url": "http://localhost:9090",
+            "access": "proxy",
+            "isDefault": true
+          }
+        body_format: json
+        status_code: 200,409
+      register: add_datasource_result
+      ignore_errors: yes
+
+    - name: Import Grafana dashboard from local JSON
+      ansible.builtin.uri:
+        url: http://localhost:3000/api/dashboards/import
+        method: POST
+        url_username: admin
+        url_password: admin
+        force_basic_auth: true
+        headers:
+          Content-Type: "application/json"
+        body: >
+          {
+            "dashboard": {{ lookup('file', 'files/1860_rev41.json') | from_json }},
+            "overwrite": true,
+            "inputs": [
+              {
+                "name": "DS_PROMETHEUS",
+                "type": "datasource",
+                "pluginId": "prometheus",
+                "value": "Prometheus"
+              }
+            ]
+          }
+        body_format: json

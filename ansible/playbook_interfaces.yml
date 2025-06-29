@@ -1,0 +1,35 @@
+---
+- name: Configure static IPs on eth2 using ifupdown (Debian)
+  hosts: frr_routers
+  become: true
+
+  tasks:
+    - name: Wait for eth2 to be present
+      ansible.builtin.shell: ip link show eth2
+      register: eth2_status
+      retries: 5
+      delay: 2
+      until: eth2_status.rc == 0
+
+    - name: Ensure /etc/network/interfaces includes interfaces.d
+      ansible.builtin.lineinfile:
+        path: /etc/network/interfaces
+        line: "source /etc/network/interfaces.d/*"
+        state: present
+
+    - name: Deploy interface config for router1
+      ansible.builtin.template:
+        src: interfaces_router1.j2
+        dest: /etc/network/interfaces.d/eth2.cfg
+        mode: "0644"
+      when: inventory_hostname == 'router1'
+
+    - name: Deploy interface config for router2
+      ansible.builtin.template:
+        src: interfaces_router2.j2
+        dest: /etc/network/interfaces.d/eth2.cfg
+        mode: "0644"
+      when: inventory_hostname == 'router2'
+
+    - name: Bring up eth2
+      ansible.builtin.shell: ifup eth2

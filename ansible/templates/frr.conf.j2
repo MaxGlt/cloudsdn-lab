@@ -1,0 +1,24 @@
+frr defaults traditional
+hostname {{ inventory_hostname }}
+log stdout
+!
+{% if inventory_hostname == 'router1' %}
+interface eth1
+exit
+interface eth2
+exit
+router ospf
+ network 192.168.56.0/24 area 0
+ network 192.168.10.0/24 area 0
+exit
+{% elif inventory_hostname == 'router2' %}
+interface eth1
+exit
+interface eth2
+exit
+router ospf
+ network 192.168.56.0/24 area 0
+ network 192.168.20.0/24 area 0
+exit
+{% endif %}
+line vty
